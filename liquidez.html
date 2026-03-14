@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Liquidez (vista rápida)</title>
+<style>
+:root{--bg:#f2f6fb;--ink:#162332;--line:#d8e3ef;--brand:#005b99;--brand-soft:#eaf4ff;--ok:#1f8a4c;--warn:#b17800;--bad:#a03830}
+body{font-family:Manrope,Segoe UI,Arial,sans-serif;background:radial-gradient(circle at top right,#edf5ff 0%, var(--bg) 48%);color:var(--ink);margin:0}
+.wrap{max-width:1680px;margin:0 auto;padding:14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 10px 26px rgba(22,35,50,.06)}
+.topline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.navlinks{display:flex;gap:8px;flex-wrap:wrap}
+.navlinks a{padding:5px 10px;border:1px solid var(--line);border-radius:999px;background:#f7fbff;color:#2e4459;font-size:12px;text-decoration:none}
+.subtitle{margin-top:6px;color:#4d6278}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(160px,1fr));gap:8px}
+.stat{background:#f7fbff;border:1px solid #dce8f5;border-radius:10px;padding:8px}
+.stat .k{font-size:11px;color:#58708a}
+.stat .v{font-size:20px;font-weight:800}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.legend .tag{padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.tag.ok{background:#e8f8ed;color:#1d5f3b;border:1px solid #bde5c9}
+.tag.warn{background:#fff8e7;color:#7a5a00;border:1px solid #f1dfaa}
+.tag.bad{background:#fff0ef;color:#7e2d28;border:1px solid #f1c1bc}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px 8px;border-bottom:1px solid #e7eef6;text-align:left;vertical-align:top}
+th{position:sticky;top:0;background:#f7fbff;z-index:1}
+.scroll{max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:12px}
+.pill{padding:3px 8px;border-radius:999px;font-weight:700;font-size:11px;display:inline-block}
+.s-active{background:#e8f8ed;color:#1d5f3b;border:1px solid #bde5c9}
+.s-miss{background:#fff8e7;color:#7a5a00;border:1px solid #f1dfaa}
+.s-inactive{background:#fff0ef;color:#7e2d28;border:1px solid #f1c1bc}
+.liq-pill{padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;display:inline-block}
+.liq-high{background:#e8f8ed;color:#1d5f3b;border:1px solid #bde5c9}
+.liq-mid{background:#fff8e7;color:#7a5a00;border:1px solid #f1dfaa}
+.liq-low{background:#fff0ef;color:#7e2d28;border:1px solid #f1c1bc}
+.bar{height:8px;background:#edf3fb;border-radius:999px;overflow:hidden;min-width:130px}
+.bar > span{display:block;height:100%;background:linear-gradient(90deg,#1f8a4c,#9ed278)}
+.bar.warn > span{background:linear-gradient(90deg,#b17800,#e0b84f)}
+.bar.bad > span{background:linear-gradient(90deg,#a03830,#e67b71)}
+.helper{font-size:12px;color:#51697f;line-height:1.45}
+.tops{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.toplist{border:1px solid #dce8f5;border-radius:12px;background:#fbfdff;padding:10px}
+.toplist h4{margin:0 0 8px 0}
+.toplist ol{margin:0;padding-left:18px}
+.toplist li{margin:0 0 6px 0;font-size:12px;line-height:1.35}
+@media (max-width:900px){.stats{grid-template-columns:1fr;}}
+@media (max-width:980px){.tops{grid-template-columns:1fr}}
+</style></head><body><div class="wrap">
+<div class="card"><div class="topline"><div><h2 style="margin:0">Liquidez (vista rápida)</h2><div class="subtitle">Corte: 2026-03-14 · Semáforo simple por zona</div></div><div class="navlinks"><a href="./listado.html">Listado</a><a href="./liquidez.html">Liquidez</a><a href="./calculadora.html">Calculadora de score</a><a href="./dispersion.html">Dispersión</a></div></div></div>
+<div class="card">
+  <div class="stats">
+    <div class="stat"><div class="k">Anuncios activos</div><div class="v" id="k_active">0</div></div>
+    <div class="stat"><div class="k">Inactivos confirmados</div><div class="v" id="k_inactive">0</div></div>
+    <div class="stat"><div class="k">Días en mercado (mediana)</div><div class="v" id="k_dom">0</div></div>
+  </div>
+  <div class="legend">
+    <span class="tag ok">Semáforo verde: alta liquidez (score >= 70)</span>
+    <span class="tag warn">Semáforo amarillo: liquidez media (45 - 69)</span>
+    <span class="tag bad">Semáforo rojo: liquidez baja (&lt; 45)</span>
+  </div>
+  <div class="helper" style="margin-top:8px">Lectura rápida: menos salidas y menos días en mercado = mejor liquidez.</div>
+</div>
+<div class="card">
+  <div class="tops">
+    <div class="toplist">
+      <h4>Top 10 zonas recomendadas ahora</h4>
+      <ol id="top_good"></ol>
+    </div>
+    <div class="toplist">
+      <h4>Top 10 zonas con alerta</h4>
+      <ol id="top_alert"></ol>
+    </div>
+  </div>
+</div>
+<div class="card"><h3 style="margin:0 0 8px 0">Resumen por zona</h3><div class="scroll"><table><thead><tr><th>Zona</th><th>Semáforo</th><th>Riesgo de salida</th><th>Días en mercado (mediana)</th><th>Precio/m² (mediana)</th><th>Activos</th></tr></thead><tbody id="tb_zone"></tbody></table></div></div>
+</div>
+<script>
+const KPI={"active": 1000, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "drops_last_7d": 0};
+const ZONES=[{"zone": "Costa del Este", "active": 129, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2521, "reactivations": 0}, {"zone": "Punta Pacífica", "active": 124, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2196, "reactivations": 0}, {"zone": "San Francisco", "active": 117, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1909, "reactivations": 0}, {"zone": "Avenida Balboa", "active": 92, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2371, "reactivations": 0}, {"zone": "Coco del Mar", "active": 84, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2252, "reactivations": 0}, {"zone": "Santa María", "active": 70, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 3194, "reactivations": 0}, {"zone": "El Cangrejo", "active": 45, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1802, "reactivations": 0}, {"zone": "Punta Paitilla", "active": 38, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1611, "reactivations": 0}, {"zone": "Bella Vista", "active": 36, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2392, "reactivations": 0}, {"zone": "Obarrio", "active": 22, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1777, "reactivations": 0}, {"zone": "Carrasquilla", "active": 19, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2013, "reactivations": 0}, {"zone": "Marbella", "active": 19, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 3836, "reactivations": 0}, {"zone": "Hato Pintado", "active": 16, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1957, "reactivations": 0}, {"zone": "Ciudad de Panamá", "active": 14, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1811, "reactivations": 0}, {"zone": "Edison Park", "active": 14, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1704, "reactivations": 0}, {"zone": "Vía  Porras", "active": 12, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1964, "reactivations": 0}, {"zone": "Albrook", "active": 11, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2025, "reactivations": 0}, {"zone": "Vía España", "active": 11, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2127, "reactivations": 0}, {"zone": "Betania", "active": 8, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2046, "reactivations": 0}, {"zone": "Clayton", "active": 8, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2414, "reactivations": 0}, {"zone": "Parque Lefevre", "active": 8, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1533, "reactivations": 0}, {"zone": "Amador", "active": 7, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 4818, "reactivations": 0}, {"zone": "La Cresta", "active": 7, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2676, "reactivations": 0}, {"zone": "Tumba Muerto", "active": 7, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2541, "reactivations": 0}, {"zone": "Vía Argentina", "active": 7, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1942, "reactivations": 0}, {"zone": "Pueblo Nuevo", "active": 6, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1497, "reactivations": 0}, {"zone": "Río Abajo", "active": 6, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 893, "reactivations": 0}, {"zone": "12 de Octubre", "active": 5, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1558, "reactivations": 0}, {"zone": "Costa Sur", "active": 5, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1377, "reactivations": 0}, {"zone": "El Carmen", "active": 5, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1809, "reactivations": 0}, {"zone": "Juan Díaz", "active": 5, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1859, "reactivations": 0}, {"zone": "Villa de las Fuentes", "active": 5, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1390, "reactivations": 0}, {"zone": "Altos de Golf", "active": 4, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1895, "reactivations": 0}, {"zone": "Casco Viejo, San Felipe", "active": 4, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 4665, "reactivations": 0}, {"zone": "Vía Transístmica", "active": 4, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1514, "reactivations": 0}, {"zone": "Ancón", "active": 3, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1513, "reactivations": 0}, {"zone": "Campo Alegre", "active": 2, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2112, "reactivations": 0}, {"zone": "Chanis", "active": 2, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1614, "reactivations": 0}, {"zone": "Dos Mares", "active": 2, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 10302, "reactivations": 0}, {"zone": "El Dorado", "active": 2, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1498, "reactivations": 0}, {"zone": "La Loma", "active": 2, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1692, "reactivations": 0}, {"zone": "Pedregal", "active": 2, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1142, "reactivations": 0}, {"zone": "Versalles", "active": 2, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1707, "reactivations": 0}, {"zone": "Avenida Justo Arosemena", "active": 1, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2864, "reactivations": 0}, {"zone": "Balboa", "active": 1, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1283, "reactivations": 0}, {"zone": "Calidonia", "active": 1, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1612, "reactivations": 0}, {"zone": "Calle  50", "active": 1, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2810, "reactivations": 0}, {"zone": "La Exposición", "active": 1, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2009, "reactivations": 0}, {"zone": "Las Acacias", "active": 1, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1526, "reactivations": 0}, {"zone": "Las Cumbres", "active": 1, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1389, "reactivations": 0}, {"zone": "Miraflores", "active": 1, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 1488, "reactivations": 0}, {"zone": "Vía Cincuentenario", "active": 1, "missing_temporal": 0, "inactive_confirmed": 0, "median_dom_active": 1, "median_price_m2_active": 2301, "reactivations": 0}];
+const k=(id)=>document.getElementById(id);
+function esc(s){return String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}
+function money(s){const n=Number(String(s||'').replace(/[^0-9.\-]/g,'')); return Number.isFinite(n)?('$'+Math.round(n).toLocaleString('es-PA')):'-';}
+function liqScore(r){
+  const a=Number(r.active||0), m=Number(r.missing_temporal||0), i=Number(r.inactive_confirmed||0), dom=Number(r.median_dom_active||0);
+  const tot=Math.max(1,a+m+i);
+  const outRate=(m+i)/tot;
+  const domNorm=Math.min(1, dom/120);
+  const penalty=(outRate*0.7 + domNorm*0.3)*100;
+  return Math.max(0, Math.min(100, Math.round(100-penalty)));
+}
+function liqBadge(score){
+  if(score>=70) return `<span class="liq-pill liq-high">Alta (${score})</span>`;
+  if(score>=45) return `<span class="liq-pill liq-mid">Media (${score})</span>`;
+  return `<span class="liq-pill liq-low">Baja (${score})</span>`;
+}
+function riskBar(r){
+  const a=Number(r.active||0), m=Number(r.missing_temporal||0), i=Number(r.inactive_confirmed||0);
+  const tot=Math.max(1,a+m+i);
+  const pct=Math.round(((m+i)/tot)*100);
+  const cls=pct<20?'':(pct<40?' warn':' bad');
+  return `<div style="display:flex;align-items:center;gap:8px"><div class="bar${cls}"><span style="width:${pct}%"></span></div><span>${pct}%</span></div>`;
+}
+function riskPct(r){
+  const a=Number(r.active||0), m=Number(r.missing_temporal||0), i=Number(r.inactive_confirmed||0);
+  const tot=Math.max(1,a+m+i);
+  return Math.round(((m+i)/tot)*100);
+}
+function renderZones(){
+  const b=k('tb_zone');
+  const rows=[...ZONES].map(r=>({...r, _score:liqScore(r)})).sort((x,y)=>y._score-x._score);
+  b.innerHTML=rows.map(r=>`<tr>
+    <td>${esc(r.zone)}</td>
+    <td>${liqBadge(r._score)}</td>
+    <td>${riskBar(r)}</td>
+    <td>${r.median_dom_active||0}</td>
+    <td>${money(r.median_price_m2_active)}</td>
+    <td>${r.active||0}</td>
+  </tr>`).join('');
+}
+function renderTops(){
+  const goodEl=k('top_good'), alertEl=k('top_alert');
+  const base=[...ZONES].map(r=>({
+    ...r,
+    _score:liqScore(r),
+    _risk:riskPct(r),
+    _active:Number(r.active||0),
+    _dom:Number(r.median_dom_active||0),
+  }));
+  const good = base
+    .filter(r=>r._active>=5)
+    .sort((a,b)=> (b._score-a._score) || (a._risk-b._risk) || (a._dom-b._dom))
+    .slice(0,10);
+  const alert = base
+    .filter(r=>r._active>=3)
+    .sort((a,b)=> (b._risk-a._risk) || (a._score-b._score) || (b._dom-a._dom))
+    .slice(0,10);
+
+  goodEl.innerHTML = good.length
+    ? good.map(r=>`<li><strong>${esc(r.zone)}</strong> · semáforo ${r._score} · riesgo ${r._risk}% · días mercado ${r._dom}</li>`).join('')
+    : '<li>Sin datos suficientes.</li>';
+  alertEl.innerHTML = alert.length
+    ? alert.map(r=>`<li><strong>${esc(r.zone)}</strong> · riesgo ${r._risk}% · semáforo ${r._score} · días mercado ${r._dom}</li>`).join('')
+    : '<li>Sin datos suficientes.</li>';
+}
+function boot(){
+  k('k_active').textContent=String(KPI.active||0);
+  k('k_inactive').textContent=String(KPI.inactive_confirmed||0);
+  k('k_dom').textContent=String(KPI.median_dom_active||0);
+  renderZones(); renderTops();
+}
+boot();
+</script></body></html>

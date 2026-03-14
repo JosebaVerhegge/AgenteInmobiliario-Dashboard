@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calculadora de score</title>
+<style>
+body{font-family:Manrope,Segoe UI,Arial,sans-serif;background:radial-gradient(circle at top right,#edf5ff 0%, #f2f6fb 48%);color:#17222d;margin:0}
+.wrap{max-width:1160px;margin:0 auto;padding:14px}
+.card{background:#fff;border:1px solid #d9e2ec;border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 10px 26px rgba(22,35,50,.06)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:10px}
+.wbox{background:#f7fbff;border:1px solid #dce8f5;border-radius:8px;padding:8px}
+.wbox label{display:block;font-size:12px;color:#375}
+.wbox input{margin-top:4px;width:100%;box-sizing:border-box;padding:7px;border:1px solid #cfd9e4;border-radius:7px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{padding:8px 12px;border:1px solid #0a4a82;border-radius:8px;background:#fff;color:#0a4a82;cursor:pointer}
+.btn-danger{border-color:#a10f2b;color:#a10f2b}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th,.tbl td{padding:6px;border-bottom:1px solid #e6eef7;text-align:left;vertical-align:top}
+.tbl tbody tr:nth-child(even){background:#fcfdff}
+.tbl input{width:100%;box-sizing:border-box;padding:6px;border:1px solid #cfd9e4;border-radius:7px;font-size:12px}
+.ok{color:#0b6b30} .err{color:#a10f2b}
+.hint{font-size:12px;color:#546}
+.fold{border:1px solid #dce8f5;border-radius:10px;background:#fbfdff;padding:8px 10px;margin-top:10px}
+.fold > summary{cursor:pointer;font-weight:600;color:#20354a}
+.topline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.navlinks{display:flex;gap:8px;flex-wrap:wrap}
+.navlinks a{padding:5px 10px;border:1px solid #d8e3ef;border-radius:999px;background:#f7fbff;color:#2e4459;font-size:12px;text-decoration:none}
+.navlinks a:hover{border-color:#b8cbe0;background:#eef5fd}
+.sum-box{display:flex;align-items:center;gap:10px;min-width:280px}
+.progress{height:8px;border-radius:999px;background:#e7edf6;overflow:hidden;min-width:180px}
+.progress > span{display:block;height:100%;width:0;background:linear-gradient(90deg,#0a4a82,#2f7ac6)}
+.progress.bad > span{background:linear-gradient(90deg,#c06d00,#d99700)}
+.progress.over > span{background:linear-gradient(90deg,#a10f2b,#cf2f4e)}
+.sticky-actions{position:sticky;bottom:8px;z-index:4}
+@media (max-width:1000px){.grid{grid-template-columns:repeat(2,minmax(180px,1fr));}}
+@media (max-width:700px){.grid{grid-template-columns:1fr;} .topline{flex-direction:column}}
+</style></head><body><div class="wrap">
+<div class="card">
+  <div class="topline">
+    <div>
+      <h2 style="margin:0">Calculadora de score</h2>
+      <div style="margin-top:6px;color:#4d6278">Corte: 2026-03-14</div>
+    </div>
+    <div class="navlinks">
+      <a href="./listado.html">Listado</a>
+      <a href="./liquidez.html">Liquidez</a>
+      <a href="./calculadora.html">Calculadora de score</a>
+      <a href="./dispersion.html">Dispersión</a>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin:0 0 8px 0">Pesos del modelo</h3>
+  <div class="grid">
+    <div class="wbox"><label>Precio/m² vs zona</label><input id="w_price_zone" type="number" min="0" step="1"></div>
+    <div class="wbox"><label>Mantenimiento/m²</label><input id="w_maintenance_m2" type="number" min="0" step="1"></div>
+    <div class="wbox"><label>Liquidez zona</label><input id="w_zone_liquidity" type="number" min="0" step="1"></div>
+    <div class="wbox"><label>Distribución (opcional)</label><input id="w_distribution" type="number" min="0" step="1"></div>
+    <div class="wbox"><label>Parking</label><input id="w_parking" type="number" min="0" step="1"></div>
+    <div class="wbox"><label>Amenidades</label><input id="w_amenities" type="number" min="0" step="1"></div>
+  </div>
+  <div class="hint" style="margin-top:8px">Distribución = equilibrio entre m²/recámara y baños/recámara.</div>
+  <div class="hint" style="margin-top:4px">Regla parking: 1 parking = 50% del peso; 2 o más = 100% del peso.</div>
+  <div class="row" style="margin-top:10px">
+    <label style="margin:0">Mín. anuncios para mediana de zona</label>
+    <input id="min_zone_samples" type="number" min="1" step="1" style="width:100px;padding:7px;border:1px solid #cfd9e4;border-radius:7px">
+    <div class="sum-box">
+      <span>Peso total: <strong id="w_sum">0</strong> / 100</span>
+      <div id="w_progress" class="progress"><span></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <details class="fold" open>
+    <summary>Liquidez por zona</summary>
+    <div class="row" style="justify-content:space-between;margin-top:8px">
+      <div class="hint">Define valor de 0 a 10 para cada zona normalizada (ej: "marbella").</div>
+      <button class="btn" id="add_zone" type="button">Añadir zona</button>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Zona</th><th>Valor (0-10)</th><th></th></tr></thead>
+      <tbody id="tb_zone"></tbody>
+    </table>
+  </details>
+
+  <details class="fold">
+    <summary>Diccionario de amenidades</summary>
+    <div class="row" style="justify-content:space-between;margin-top:8px">
+      <div class="hint">Reglas positivas: si coincide un patron, suma puntos.</div>
+      <button class="btn" id="add_amen" type="button">Añadir regla</button>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Clave</th><th>Patrones</th><th>Puntos</th><th></th></tr></thead>
+      <tbody id="tb_amen"></tbody>
+    </table>
+  </details>
+
+</div>
+
+<div class="card sticky-actions">
+  <div class="row">
+    <button class="btn" id="btn_reset">Restablecer</button>
+    <button class="btn" id="btn_save">Calcular y guardar</button>
+    <span id="msg"></span>
+  </div>
+  <div class="hint" style="margin-top:8px">Al guardar, vuelve a Listado/Detalle para ver puntuaciones recalculadas.</div>
+</div>
+</div>
+<script>
+const KEY='e24_score_cfg_v1';
+const DEFAULT_CFG={
+  "schema_version": 2,
+  "min_zone_samples": 5,
+  "weights": {
+    "price_zone": 57,
+    "maintenance_m2": 10,
+    "zone_liquidity": 5,
+    "distribution": 5,
+    "parking": 8,
+    "year_state": 0,
+    "amenities": 12,
+    "renovation": 3
+  },
+  "zone_liquidity": {
+    "santa maria": 10.0,
+    "costa del este": 9.5,
+    "punta pacifica": 9.3,
+    "marbella": 8.8,
+    "obarrio": 8.6,
+    "san francisco": 8.4,
+    "avenida balboa": 8.2,
+    "bella vista": 8.0,
+    "el cangrejo": 7.6,
+    "paitilla": 9.0
+  },
+  "amenities_dict": {
+    "seguridad": {
+      "patterns": [
+        "seguridad 24 horas",
+        "seguridad 24 7",
+        "garita de seguridad",
+        "vigilancia",
+        "seguridad"
+      ],
+      "points": 1.0
+    },
+    "elevador": {
+      "patterns": [
+        "elevador",
+        "ascensor",
+        "elevadores de alta velocidad",
+        "2 o mas elevadores"
+      ],
+      "points": 0.3
+    },
+    "piscina": {
+      "patterns": [
+        "piscina",
+        "piscinas",
+        "pool",
+        "jacuzzi",
+        "pool deck",
+        "deck de piscina",
+        "splashpark",
+        "infinity pool"
+      ],
+      "points": 1.1
+    },
+    "gimnasio": {
+      "patterns": [
+        "gimnasio",
+        "gym",
+        "fitness",
+        "gimnasio equipado",
+        "yoga deck"
+      ],
+      "points": 1.0
+    },
+    "area_social": {
+      "patterns": [
+        "area social",
+        "social area",
+        "area comun",
+        "amenidades",
+        "salon de juegos",
+        "coworking",
+        "sky lounge",
+        "rooftop"
+      ],
+      "points": 0.8
+    },
+    "parking_visitas": {
+      "patterns": [
+        "parking de visitas",
+        "estacionamiento de visitas",
+        "parking visitas",
+        "estacionamiento visitas"
+      ],
+      "points": 0.5
+    },
+    "planta": {
+      "patterns": [
+        "planta electrica",
+        "generador electrico"
+      ],
+      "points": 0.5
+    },
+    "lobby": {
+      "patterns": [
+        "lobby",
+        "conserjeria",
+        "lobby de doble altura"
+      ],
+      "points": 0.4
+    },
+    "cuarto_servicio": {
+      "patterns": [
+        "cuarto y bano de empleada",
+        "cuarto y baño de empleada"
+      ],
+      "points": 0.5
+    },
+    "vista_mar": {
+      "patterns": [
+        "vista al mar",
+        "frente al mar",
+        "vista panoramica al mar"
+      ],
+      "points": 0.9
+    },
+    "pet": {
+      "patterns": [
+        "pet friendly"
+      ],
+      "points": 0.3
+    },
+    "bbq": {
+      "patterns": [
+        "area de bbq",
+        "barbacoa"
+      ],
+      "points": 0.3
+    },
+    "linea_blanca": {
+      "patterns": [
+        "linea blanca",
+        "electrodomesticos",
+        "nevera",
+        "lavadora",
+        "secadora"
+      ],
+      "points": 0.4
+    },
+    "balcon": {
+      "patterns": [
+        "balcon",
+        "balcony",
+        "terraza"
+      ],
+      "points": 0.3
+    },
+    "amoblado": {
+      "patterns": [
+        "amoblado",
+        "amoblada",
+        "furnished"
+      ],
+      "points": 0.3
+    }
+  },
+  "amenities_max_raw": 10.0
+};
+const byId=(id)=>document.getElementById(id);
+
+function loadCfg(){
+  try{
+    const raw=localStorage.getItem(KEY);
+    if(!raw) return DEFAULT_CFG;
+    const cfg=JSON.parse(raw);
+    if(!cfg || typeof cfg!=='object') return DEFAULT_CFG;
+    if(Number(cfg.schema_version||0)!==Number(DEFAULT_CFG.schema_version||2)) return DEFAULT_CFG;
+    const w=(cfg.weights&&typeof cfg.weights==='object')?cfg.weights:{};
+    delete w.text_signals;
+    const allKeys=['price_zone','maintenance_m2','zone_liquidity','distribution','parking','amenities'];
+    const defaults=((DEFAULT_CFG && DEFAULT_CFG.weights) ? DEFAULT_CFG.weights : {});
+    let sumW=0;
+    for(const k of allKeys){
+      const v=Number(w[k]);
+      w[k]=Number.isFinite(v) && v>=0 ? v : 0;
+      sumW += w[k];
+    }
+    if(sumW<=0){
+      for(const k of allKeys) w[k]=defaults[k];
+    } else if(Math.abs(sumW-100)>0.001){
+      const f=100/sumW;
+      let acc=0;
+      for(let i=0;i<allKeys.length;i++){
+        const k=allKeys[i];
+        if(i<allKeys.length-1){
+          w[k]=Math.max(0, Math.round((w[k]*f)*10)/10);
+          acc += w[k];
+        } else {
+          w[k]=Math.max(0, Math.round((100-acc)*10)/10);
+        }
+      }
+    }
+    cfg.weights=w;
+    return cfg;
+  }catch(_e){ return DEFAULT_CFG; }
+}
+function updateWeightSum(){
+  const ids=['w_price_zone','w_maintenance_m2','w_zone_liquidity','w_distribution','w_parking','w_amenities'];
+  const sum=ids.map(id=>Number(byId(id).value||0)).reduce((a,b)=>a+b,0);
+  byId('w_sum').textContent=String(sum);
+  const pg=byId('w_progress');
+  if(pg){
+    const fill=pg.querySelector('span');
+    const pct=Math.max(0,Math.min(120,(sum/100)*100));
+    if(fill) fill.style.width=`${pct}%`;
+    pg.classList.remove('bad','over');
+    if(sum>100) pg.classList.add('over');
+    else if(sum!==100) pg.classList.add('bad');
+  }
+  return sum;
+}
+function setMsg(text,ok){
+  const m=byId('msg');
+  m.textContent=text;
+  m.className=ok?'ok':'err';
+}
+function mkCellInput(value, cls){
+  return `<input class="${cls||''}" value="${String(value??'').replace(/"/g,'&quot;')}">`;
+}
+function rowDeleteBtn(){
+  return '<button type="button" class="btn btn-danger del-row">Eliminar</button>';
+}
+function splitCsv(s){
+  return String(s||'').split(',').map(x=>x.trim()).filter(Boolean);
+}
+function fillWeights(cfg){
+  const w=cfg.weights||{};
+  byId('w_price_zone').value=w.price_zone??0;
+  byId('w_maintenance_m2').value=w.maintenance_m2??0;
+  byId('w_zone_liquidity').value=w.zone_liquidity??0;
+  byId('w_distribution').value=w.distribution??0;
+  byId('w_parking').value=w.parking??0;
+  byId('w_amenities').value=w.amenities??0;
+  byId('min_zone_samples').value=cfg.min_zone_samples??5;
+  updateWeightSum();
+}
+function setZoneRows(mapObj){
+  const tb=byId('tb_zone');
+  tb.innerHTML='';
+  const keys=Object.keys(mapObj||{}).sort();
+  for(const k of keys){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${mkCellInput(k,'z-key')}</td><td>${mkCellInput(mapObj[k],'z-val')}</td><td>${rowDeleteBtn()}</td>`;
+    tb.appendChild(tr);
+  }
+}
+function setRuleRows(tbId, dictObj){
+  const tb=byId(tbId);
+  tb.innerHTML='';
+  const keys=Object.keys(dictObj||{}).sort();
+  for(const k of keys){
+    const r=dictObj[k]||{};
+    const pats=Array.isArray(r.patterns)?r.patterns.join(', '):'';
+    const pts=Number(r.points);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${mkCellInput(k,'r-key')}</td><td>${mkCellInput(pats,'r-pat')}</td><td>${mkCellInput(Number.isFinite(pts)?pts:'','r-pts')}</td><td>${rowDeleteBtn()}</td>`;
+    tb.appendChild(tr);
+  }
+}
+function addZoneRow(key='', val=''){
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td>${mkCellInput(key,'z-key')}</td><td>${mkCellInput(val,'z-val')}</td><td>${rowDeleteBtn()}</td>`;
+  byId('tb_zone').appendChild(tr);
+}
+function addRuleRow(tbId, key='', pats='', pts=''){
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td>${mkCellInput(key,'r-key')}</td><td>${mkCellInput(pats,'r-pat')}</td><td>${mkCellInput(pts,'r-pts')}</td><td>${rowDeleteBtn()}</td>`;
+  byId(tbId).appendChild(tr);
+}
+function tableToZoneMap(){
+  const out={};
+  for(const tr of byId('tb_zone').querySelectorAll('tr')){
+    const key=(tr.querySelector('.z-key')?.value||'').trim().toLowerCase();
+    const val=Number(tr.querySelector('.z-val')?.value||'');
+    if(!key || !Number.isFinite(val)) continue;
+    out[key]=Math.max(0,Math.min(10,val));
+  }
+  return out;
+}
+function tableToRuleMap(tbId){
+  const out={};
+  for(const tr of byId(tbId).querySelectorAll('tr')){
+    const key=(tr.querySelector('.r-key')?.value||'').trim();
+    const pats=splitCsv(tr.querySelector('.r-pat')?.value||'');
+    const pts=Number(tr.querySelector('.r-pts')?.value||'');
+    if(!key || !Number.isFinite(pts) || !pats.length) continue;
+    out[key]={patterns:pats, points:pts};
+  }
+  return out;
+}
+function buildCfgFromForm(){
+  return {
+    ...DEFAULT_CFG,
+    min_zone_samples: Number(byId('min_zone_samples').value||5),
+    weights: {
+      price_zone: Number(byId('w_price_zone').value||0),
+      maintenance_m2: Number(byId('w_maintenance_m2').value||0),
+      zone_liquidity: Number(byId('w_zone_liquidity').value||0),
+      distribution: Number(byId('w_distribution').value||0),
+      parking: Number(byId('w_parking').value||0),
+      year_state: 0,
+      amenities: Number(byId('w_amenities').value||0),
+    },
+    zone_liquidity: tableToZoneMap(),
+    amenities_dict: tableToRuleMap('tb_amen'),
+  };
+}
+function fillForm(cfg){
+  fillWeights(cfg);
+  setZoneRows(cfg.zone_liquidity||{});
+  setRuleRows('tb_amen', cfg.amenities_dict||{});
+}
+
+for(const id of ['w_price_zone','w_maintenance_m2','w_zone_liquidity','w_distribution','w_parking','w_amenities']){
+  byId(id).addEventListener('input', updateWeightSum);
+}
+byId('add_zone').addEventListener('click', ()=>addZoneRow());
+byId('add_amen').addEventListener('click', ()=>addRuleRow('tb_amen'));
+for(const tbId of ['tb_zone','tb_amen']){
+  byId(tbId).addEventListener('click', (ev)=>{
+    if(ev.target.classList.contains('del-row')){
+      ev.target.closest('tr')?.remove();
+    }
+  });
+}
+byId('btn_reset').addEventListener('click', ()=>{ fillForm(DEFAULT_CFG); setMsg('Valores restablecidos', true); });
+byId('btn_save').addEventListener('click', ()=>{
+  try {
+    const cfg=buildCfgFromForm();
+    const sum=updateWeightSum();
+    if(sum!==100) { setMsg('El peso total debe ser 100', false); return; }
+    localStorage.setItem(KEY, JSON.stringify(cfg));
+    setMsg('Configuración guardada. Revisa Listado/Detalle.', true);
+  } catch(e) {
+    setMsg('Error en valores: '+String(e), false);
+  }
+});
+fillForm(loadCfg());
+</script>
+</body></html>
